@@ -13,8 +13,12 @@ COPY . .
 # build react frontend
 RUN npm run build
 
+# copy and setup entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # expose app port
 EXPOSE 8081
 
-# start server
-CMD ["node", "js/Node/server.js"]
+# start server via entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]

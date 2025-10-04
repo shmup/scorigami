@@ -2,8 +2,11 @@
 import { Client } from "pg";
 import dbVars from "./dbVars.js";
 
+const DATABASE_URL = process.env.DATABASE_URL || dbVars.DATABASE_URL;
+
 const client = new Client({
-	connectionString: dbVars.DATABASE_URL,
+	connectionString: DATABASE_URL,
+	ssl: process.env.DATABASE_URL ? false : { rejectUnauthorized: false },
 });
 
 client.connect();

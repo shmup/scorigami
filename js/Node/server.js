@@ -1,12 +1,16 @@
 // main express server for scorigami, handles espn api polling and serves react app
 
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import { Client } from "pg";
 import "dotenv/config.js";
 import sslRedirect from "heroku-ssl-redirect";
 import dbVars from "./dbVars.js";
 import teamParser from "./teamParser.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -38,6 +42,14 @@ var ssl = { rejectUnauthorized: false };
 if (!DATABASE_URL) {
 	DATABASE_URL = dbVars.DATABASE_URL;
 	ssl = { rejectUnauthorized: false };
+}
+
+// disable SSL for local/docker postgres
+if (
+	DATABASE_URL.includes("localhost") ||
+	DATABASE_URL.includes("@postgres:")
+) {
+	ssl = false;
 }
 
 const client = new Client({
