@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: scorigami
+      POSTGRES_PASSWORD: scorigami
+      POSTGRES_DB: scorigami
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scorigami"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgres://scorigami:scorigami@postgres:5432/scorigami
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
