@@ -45,10 +45,7 @@ if (!DATABASE_URL) {
 }
 
 // disable SSL for local/docker postgres
-if (
-	DATABASE_URL.includes("localhost") ||
-	DATABASE_URL.includes("@postgres:")
-) {
+if (DATABASE_URL.includes("localhost") || DATABASE_URL.includes("@postgres:")) {
 	ssl = false;
 }
 

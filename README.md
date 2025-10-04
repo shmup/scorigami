@@ -77,7 +77,7 @@ Then refresh the page in your browser.
 
 #### Code Quality
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The linter runs automatically via git pre-commit hooks to ensure code quality.
+This project uses [Biome](https://biomejs.dev/) for linting and formatting. Pre-commit hooks are managed by [Husky](https://typicode.github.io/husky/) to automatically run Biome checks before each commit.
 
 ## Authors
 
