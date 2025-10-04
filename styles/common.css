@@ -4,7 +4,7 @@
 	--border-radius: 3px;
 	--color-light: #eeeeee;
 	--color-primary: green;
-	--color-secondary: #EE2222;
+	--color-secondary: #ee2222;
 	--color-dark: #333333;
 	--switch-height: 21px;
 }
@@ -26,11 +26,11 @@ body {
 	justify-content: center;
 	align-items: center;
 	height: 50px;
-	font-family: 'Arvo', serif;
+	font-family: "Arvo", serif;
 	margin-bottom: 30px;
 	padding: 20px 0px;
 	width: 100%;
-	box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .47);
+	box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.47);
 	background-color: var(--color-primary);
 }
 
@@ -65,7 +65,7 @@ a {
 }
 
 .sectionContent {
-	box-shadow: 0px 2px 10px 0px rgba(0, 0, 0, .16);
+	box-shadow: 0px 2px 10px 0px rgba(0, 0, 0, 0.16);
 	background-color: white;
 	border-radius: var(--border-radius);
 	min-width: 280px;
@@ -104,7 +104,7 @@ a {
 	border: 1px solid var(--color-primary);
 	border-radius: var(--border-radius);
 	cursor: pointer;
-	transition: all .25s ease;
+	transition: all 0.25s ease;
 }
 
 #liveGamesContainer button:hover {
@@ -140,7 +140,6 @@ a {
 }
 
 .liveGame {
-	font-size: 10px;
 	border-radius: var(--border-radius);
 	width: 250px;
 	margin: 5px auto;
@@ -151,7 +150,6 @@ a {
 
 	-webkit-touch-callout: none;
 	-webkit-user-select: none;
-	-khtml-user-select: none;
 	-moz-user-select: none;
 	-ms-user-select: none;
 	user-select: none;
@@ -240,7 +238,7 @@ footer {
 	padding: 20px 0px;
 	color: var(--color-light);
 	background-color: var(--color-dark);
-	box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .47);
+	box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.47);
 	margin-top: 60px;
 	width: 100%;
 	z-index: 0;
@@ -269,7 +267,6 @@ footer a {
 
 	-webkit-touch-callout: none;
 	-webkit-user-select: none;
-	-khtml-user-select: none;
 	-moz-user-select: none;
 	-ms-user-select: none;
 	user-select: none;

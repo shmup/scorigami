@@ -1,10 +1,6 @@
-"use strict";
-
 /* exported getFullName */
-function getFullName(string)
-{
-	switch(string)
-	{
+function _getFullName(string) {
+	switch (string) {
 		case "ARI":
 			return "Arizona Cardinals";
 		case "ATL":
@@ -71,13 +67,10 @@ function getFullName(string)
 		case "WAS":
 			return "Washington Commanders";
 	}
-
 }
 /* exported getMascot */
-function getMascot(string)
-{
-	switch(string)
-	{
+function _getMascot(string) {
+	switch (string) {
 		case "ARI":
 			return "Cardinals";
 		case "ATL":
@@ -144,15 +137,11 @@ function getMascot(string)
 		case "WAS":
 			return "Commanders";
 	}
-
 }
 
 /* exported getShorthandName */
-function getShorthandName(string)
-{
-	
-	switch(string)
-	{
+function _getShorthandName(string) {
+	switch (string) {
 		case "ARI":
 			return "crd";
 		case "ATL":

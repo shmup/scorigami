@@ -1,9 +1,6 @@
-"use strict";
-
-function getFullName(string)
-{
-	switch(string)
-	{
+// maps espn team abbreviations to full names and pro football reference shorthand
+function getFullName(string) {
+	switch (string) {
 		case "ARI":
 			return "Arizona Cardinals";
 		case "ATL":
@@ -73,14 +70,10 @@ function getFullName(string)
 		case "WSH":
 			return "Washington Football Team";
 	}
-
 }
 
-function getShorthandName(string)
-{
-	
-	switch(string)
-	{
+function getShorthandName(string) {
+	switch (string) {
 		case "ARI":
 			return "crd";
 		case "ATL":
@@ -154,7 +147,7 @@ function getShorthandName(string)
 	}
 }
 
-module.exports = {
-	getFullName: getFullName,
-	getShorthandName: getShorthandName
+export default {
+	getFullName,
+	getShorthandName,
 };

@@ -1,75 +1,71 @@
-/* globals getShorthandName, chances */
+let g_data;
+let g_liveGames;
+let g_prevLiveGames;
+let g_mode;
+let g_updateTimeout;
+let g_bmacAnimating;
+let g_ehlerCount;
 
-"use strict";
+const MAX_HUE = 240.0;
+const COLORBLIND_START_R = 75.0;
+const COLORBLIND_START_G = 0.0;
+const COLORBLIND_START_B = 130.0;
+const COLORBLIND_END_R = 50.0;
+const COLORBLIND_END_G = 205.0;
+const COLORBLIND_END_B = 50.0;
 
-var g_data;
-var g_liveGames;
-var g_prevLiveGames;
-var g_mode;
-var g_updateTimeout;
-var g_bmacAnimating;
-var g_ehlerCount;
+const MODE_COUNT = "count";
+const MODE_FIRST_GAME = "firstGame";
+const MODE_FIRST_GAME_SEASON = "firstGameSeason";
+const MODE_LAST_GAME = "lastGame";
+const MODE_EHLER = "ehler";
 
-var MAX_HUE = 240.0;
-var COLORBLIND_START_R = 75.0;
-var COLORBLIND_START_G = 0.0;
-var COLORBLIND_START_B = 130.0;
-var COLORBLIND_END_R = 50.0;
-var COLORBLIND_END_G = 205.0;
-var COLORBLIND_END_B = 50.0;
+const GROUP_ALL = "all";
+const GROUP_ONGOING = "ongoing";
+const GROUP_FINISHED = "finished";
+const GROUP_TEN = "ten";
 
-var MODE_COUNT = "count";
-var MODE_FIRST_GAME = "firstGame";
-var MODE_FIRST_GAME_SEASON = "firstGameSeason";
-var MODE_LAST_GAME = "lastGame";
-var MODE_EHLER = "ehler";
-
-var GROUP_ALL = "all";
-var GROUP_ONGOING = "ongoing";
-var GROUP_FINISHED = "finished";
-var GROUP_TEN = "ten";
-
-var debug = window.location.href.startsWith("http://localhost");
+const debug = window.location.href.startsWith("http://localhost");
 
 if (debug) {
-	document.title = "(DEBUG) " + document.title;
+	document.title = `(DEBUG) ${document.title}`;
 }
 
 $.ajax({
 	url: "/data",
-	success: function (data) {
+	success: (data) => {
 		g_data = data;
 		checkReady();
 		checkLiveGamesReady();
 	},
-	error: function (data) {
+	error: (data) => {
 		console.log("error");
 		console.log(data);
-	}
+	},
 });
 
 (function updateLiveGames() {
 	$.ajax({
 		url: "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
 		cache: false,
-		success: function (data) {
-			g_liveGames = data.events.sort(function (a, b) {
-				var adate = new Date(a.date).getTime();
-				var bdate = new Date(b.date).getTime();
-				return adate == bdate ? (a.id) - (b.id) : adate - bdate;
+		success: (data) => {
+			g_liveGames = data.events.sort((a, b) => {
+				const adate = new Date(a.date).getTime();
+				const bdate = new Date(b.date).getTime();
+				return adate === bdate ? a.id - b.id : adate - bdate;
 			});
 			console.log(g_liveGames);
 			checkLiveGamesReady();
 		},
-		error: function (data) {
+		error: (data) => {
 			console.log("error");
 			console.log(data);
-		}
+		},
 	});
 	setTimeout(updateLiveGames, 30 * 1000);
 })();
 
-window.onload = function () {
+window.onload = () => {
 	checkReady();
 	checkLiveGamesReady();
 };
@@ -91,21 +87,26 @@ function checkLiveGamesReady() {
 
 //sets up table
 function render() {
+	const matrix = g_data.matrix;
 
-	var matrix = g_data.matrix;
-
-	var table = document.getElementById("scoreTable");
+	const table = document.getElementById("scoreTable");
 	if (table) {
-		var htmlString = "";
+		let htmlString = "";
 
-		htmlString += "<tr><td id='hAxisLabel' class='axisLabel' colspan=" + (g_data.maxpts + 2) + ">Winning Team Score</td>";
-		htmlString += "<td id='vAxisLabel' class='axisLabel' rowspan=" + (g_data.maxpts + 3) + "><div class='vertical'>Losing Team Score</div></td></tr>";
+		htmlString +=
+			"<tr><td id='hAxisLabel' class='axisLabel' colspan=" +
+			(g_data.maxpts + 2) +
+			">Winning Team Score</td>";
+		htmlString +=
+			"<td id='vAxisLabel' class='axisLabel' rowspan=" +
+			(g_data.maxpts + 3) +
+			"><div class='vertical'>Losing Team Score</div></td></tr>";
 
 		//cycle through all elements in the table (maxpts will always be the length and width of the matrix)
 		//start at -1 so labels can be added
-		for (var i = -1; i <= g_data.maxpts; i++) {
-			htmlString += "<tr id='row_" + i + "'>";
-			for (var j = 0; j <= g_data.maxpts + 1; j++) {
+		for (let i = -1; i <= g_data.maxpts; i++) {
+			htmlString += `<tr id='row_${i}'>`;
+			for (let j = 0; j <= g_data.maxpts + 1; j++) {
 				//if i===-1, we are in the label row
 				if (i === -1) {
 					//do not label the top right cell, since the left column is all labels
@@ -114,26 +115,40 @@ function render() {
 					}
 					//adding column lables
 					else {
-						htmlString += "<th id='colHeader_" + j + "'>" + j + "</th>";
+						htmlString += `<th id='colHeader_${j}'>${j}</th>`;
 					}
-				}
-				else {
+				} else {
 					//coloring black squares
 					if (j < i - 1) {
 						htmlString += "<td class='black'></td>";
 					}
 					//adding row label
 					else if (j === i - 1) {
-						htmlString += "<th id='specialHeader_" + i + "' class='black'></th>";
+						htmlString += `<th id='specialHeader_${i}' class='black'></th>`;
 					}
 					//adding row label
 					else if (j === g_data.maxpts + 1) {
-						htmlString += "<th id='rowHeader_" + i + "'>" + i + "</th>";
+						htmlString += `<th id='rowHeader_${i}'>${i}</th>`;
 					}
 					//color in green squares
 					else if (matrix[i][j].count > 0) {
 						//htmlString += "<td id='cell_" + i + "-" + j + "' class='green'><a href='https://www.pro-football-reference.com/boxscores/game_scores_find.cgi?pts_win=" + j + "&pts_lose=" + i +"'><div id='hover_" + i + "-" + j + "' class='hover'><div id='count_" + i + "-" + j + "' class='count'>" + matrix[i][j].count + "</div></div></a></td>";
-						htmlString += "<td id='cell_" + i + "-" + j + "' class='green'><div id='hover_" + i + "-" + j + "' class='hover'><div id='count_" + i + "-" + j + "' class='count'>" + matrix[i][j].count + "</div></div></td>";
+						htmlString +=
+							"<td id='cell_" +
+							i +
+							"-" +
+							j +
+							"' class='green'><div id='hover_" +
+							i +
+							"-" +
+							j +
+							"' class='hover'><div id='count_" +
+							i +
+							"-" +
+							j +
+							"' class='count'>" +
+							matrix[i][j].count +
+							"</div></div></td>";
 					}
 					//fill in empty squares
 					else {
@@ -156,18 +171,34 @@ function render() {
 									htmlString += "<td  id='cell_ehler' class='black'></td>";
 									break;
 								default:
-									htmlString += "<td id='cell_" + i + "-" + j + "' class='blank'><div id='hover_" + i + "-" + j + "' class='hover'></div></td>";
+									htmlString +=
+										"<td id='cell_" +
+										i +
+										"-" +
+										j +
+										"' class='blank'><div id='hover_" +
+										i +
+										"-" +
+										j +
+										"' class='hover'></div></td>";
 									break;
-
 							}
 						}
 						//color 0,1 square black since that is also impossible
 						//NOTE: we can do this after coloring in the green squares since this square will never be green
 						else if (i === 0 && j === 1) {
 							htmlString += "<td class='black'></td>";
-						}
-						else {
-							htmlString += "<td id='cell_" + i + "-" + j + "' class='blank'><div id='hover_" + i + "-" + j + "' class='hover'></div></td>";
+						} else {
+							htmlString +=
+								"<td id='cell_" +
+								i +
+								"-" +
+								j +
+								"' class='blank'><div id='hover_" +
+								i +
+								"-" +
+								j +
+								"' class='hover'></div></td>";
 						}
 					}
 				}
@@ -176,21 +207,21 @@ function render() {
 		}
 		table.innerHTML = htmlString;
 
-		var loadingTable = document.getElementById("loadingTable");
+		const loadingTable = document.getElementById("loadingTable");
 		if (loadingTable) {
 			loadingTable.classList.add("hidden");
 		}
 
 		toggleEmptyRows(false);
 
-		var helper = document.getElementById("helper");
+		const helper = document.getElementById("helper");
 		if (helper) {
-			var helperRect = helper.getBoundingClientRect();
-			helper.style.left = (window.innerWidth / 2) - (helperRect.width / 2);
-			helper.style.top = (window.innerHeight / 2) - (helperRect.height / 2);
+			const helperRect = helper.getBoundingClientRect();
+			helper.style.left = window.innerWidth / 2 - helperRect.width / 2;
+			helper.style.top = window.innerHeight / 2 - helperRect.height / 2;
 			helper.classList.remove("invisible");
 
-			setTimeout(function () {
+			setTimeout(() => {
 				helper.classList.add("hide-opacity");
 				setTimeout(hideHelper, 1000);
 			}, 3000);
@@ -198,43 +229,63 @@ function render() {
 	}
 
 	//populate hue spectrum (because doing this manually would be tedious)
-	var htmlStringLogarithmic = "";
-	var htmlStringLinear = "";
+	let htmlStringLogarithmic = "";
+	let htmlStringLinear = "";
 	//var cssString = "background: linear-gradient(to right";
-	var hueSpectrumLogarithmicColors = document.getElementById("hueSpectrumLogarithmicColors");
-	var hueSpectrumLinearColors = document.getElementById("hueSpectrumLinearColors");
+	const hueSpectrumLogarithmicColors = document.getElementById(
+		"hueSpectrumLogarithmicColors",
+	);
+	const hueSpectrumLinearColors = document.getElementById(
+		"hueSpectrumLinearColors",
+	);
 
-	var num = 600 / Math.log(MAX_HUE + 2);
+	const num = 600 / Math.log(MAX_HUE + 2);
 
-	for (var i = 0; i <= MAX_HUE; i++) {
-		var width = (Math.log(MAX_HUE + 2 - i) - Math.log(MAX_HUE + 1 - i)) * num;
-		htmlStringLogarithmic += "<span id='hueLog_" + i + "' class='hueColor' style='background-color:hsl(" + (MAX_HUE - i) + ",50%,50%);width:" + width + "px'></span>";
-		htmlStringLinear += "<span id='hueLin_" + i + "' class='hueColor' style='background-color:hsl(" + (MAX_HUE - i) + ",50%,50%);width:2.5px'></span>";
+	for (let i = 0; i <= MAX_HUE; i++) {
+		const width = (Math.log(MAX_HUE + 2 - i) - Math.log(MAX_HUE + 1 - i)) * num;
+		htmlStringLogarithmic +=
+			"<span id='hueLog_" +
+			i +
+			"' class='hueColor' style='background-color:hsl(" +
+			(MAX_HUE - i) +
+			",50%,50%);width:" +
+			width +
+			"px'></span>";
+		htmlStringLinear +=
+			"<span id='hueLin_" +
+			i +
+			"' class='hueColor' style='background-color:hsl(" +
+			(MAX_HUE - i) +
+			",50%,50%);width:2.5px'></span>";
 	}
 
 	hueSpectrumLogarithmicColors.innerHTML = htmlStringLogarithmic;
 	hueSpectrumLinearColors.innerHTML = htmlStringLinear;
 
-	var hueSpectrumLogarithmicLabelMaxCount = document.getElementById("hueSpectrumLogarithmicLabelMaxCount");
+	const hueSpectrumLogarithmicLabelMaxCount = document.getElementById(
+		"hueSpectrumLogarithmicLabelMaxCount",
+	);
 	if (hueSpectrumLogarithmicLabelMaxCount) {
 		hueSpectrumLogarithmicLabelMaxCount.innerHTML = g_data.maxcount;
 	}
-	var hueSpectrumLinearLabelMaxCount = document.getElementById("hueSpectrumLinearLabelMaxCount");
+	const hueSpectrumLinearLabelMaxCount = document.getElementById(
+		"hueSpectrumLinearLabelMaxCount",
+	);
 	if (hueSpectrumLinearLabelMaxCount) {
 		hueSpectrumLinearLabelMaxCount.innerHTML = new Date().getFullYear();
 	}
 
-	var lastUpdated = document.getElementById("lastUpdated");
+	const lastUpdated = document.getElementById("lastUpdated");
 	if (lastUpdated) {
-		lastUpdated.innerHTML = "Last Updated: " + g_data.lastUpdated + " | ";
+		lastUpdated.innerHTML = `Last Updated: ${g_data.lastUpdated} | `;
 	}
 }
 
 function setupEvents() {
 	//add hover events to cells
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = 0; j <= g_data.maxpts; j++) {
-			var cell = document.getElementById("cell_" + i + "-" + j);
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = 0; j <= g_data.maxpts; j++) {
+			const cell = document.getElementById(`cell_${i}-${j}`);
 			if (cell) {
 				cell.addEventListener("mouseover", mouseOverDelegate(i, j));
 				cell.addEventListener("mouseout", mouseOffDelegate(i, j));
@@ -243,69 +294,90 @@ function setupEvents() {
 		}
 	}
 
-	var modeSelector = document.getElementById("modeSelector");
+	const modeSelector = document.getElementById("modeSelector");
 	if (modeSelector) {
 		g_mode = modeSelector.options[modeSelector.selectedIndex].value;
-		modeSelector.addEventListener("change", function (e) { changeMode(); });
+		modeSelector.addEventListener("change", (_e) => {
+			changeMode();
+		});
 	}
 
-	var colorblindSwitch = document.getElementById("colorblindSwitch");
+	const colorblindSwitch = document.getElementById("colorblindSwitch");
 	if (colorblindSwitch) {
-		colorblindSwitch.addEventListener("change", function (e) { toggleColorblind(e.target.checked); });
+		colorblindSwitch.addEventListener("change", (e) => {
+			toggleColorblind(e.target.checked);
+		});
 	}
 
-	var countSwitch = document.getElementById("countSwitch");
+	const countSwitch = document.getElementById("countSwitch");
 	if (countSwitch) {
-		countSwitch.addEventListener("change", function (e) { toggleNumber(e.target.checked); });
+		countSwitch.addEventListener("change", (e) => {
+			toggleNumber(e.target.checked);
+		});
 	}
 
-	var gradientSwitch = document.getElementById("gradientSwitch");
+	const gradientSwitch = document.getElementById("gradientSwitch");
 	if (gradientSwitch) {
-		gradientSwitch.addEventListener("change", function (e) { toggleGradient(e.target.checked); });
+		gradientSwitch.addEventListener("change", (e) => {
+			toggleGradient(e.target.checked);
+		});
 	}
 
-	var emptyRowsSwitch = document.getElementById("emptyRowsSwitch");
+	const emptyRowsSwitch = document.getElementById("emptyRowsSwitch");
 	if (emptyRowsSwitch) {
-		emptyRowsSwitch.addEventListener("change", function (e) { toggleEmptyRows(e.target.checked); });
+		emptyRowsSwitch.addEventListener("change", (e) => {
+			toggleEmptyRows(e.target.checked);
+		});
 	}
 
-	var yearSlider = document.getElementById("yearSlider");
+	const yearSlider = document.getElementById("yearSlider");
 	if (yearSlider) {
-		var date = new Date().getFullYear();
+		const date = new Date().getFullYear();
 		yearSlider.max = date;
 		yearSlider.value = date;
-		yearSlider.addEventListener("input", function (e) { changeYearSlider(); });
+		yearSlider.addEventListener("input", (_e) => {
+			changeYearSlider();
+		});
 	}
 
-	var cellEhler = document.getElementById("cell_ehler");
+	const cellEhler = document.getElementById("cell_ehler");
 	if (cellEhler) {
 		console.log("zxcvzxcvzxcv");
 		g_ehlerCount = 0;
-		cellEhler.addEventListener("click", function (e) { ehlerClick(); });
+		cellEhler.addEventListener("click", (_e) => {
+			ehlerClick();
+		});
 	}
 
-	document.addEventListener("scroll", function (e) { handleBMAC(); });
+	document.addEventListener("scroll", (_e) => {
+		handleBMAC();
+	});
 
 	changeMode();
 }
 
 function changeMode() {
-	var modeSelector = document.getElementById("modeSelector");
+	const modeSelector = document.getElementById("modeSelector");
 	if (modeSelector) {
 		g_mode = modeSelector.options[modeSelector.selectedIndex].value;
 	}
 
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = i; j <= g_data.maxpts; j++) {
-			var div = document.getElementById("count_" + i + "-" + j);
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = i; j <= g_data.maxpts; j++) {
+			const div = document.getElementById(`count_${i}-${j}`);
 			if (div) {
 				switch (g_mode) {
-					case MODE_FIRST_GAME_SEASON:
-						var year = parseInt(g_data.matrix[i][j].first_date.substr(0, 4));
-						if (parseInt(g_data.matrix[i][j].first_date.substr(5, 2)) <= 3) year--;
-						div.innerHTML = year
+					case MODE_FIRST_GAME_SEASON: {
+						let year = parseInt(
+							g_data.matrix[i][j].first_date.substr(0, 4),
+							10,
+						);
+						if (parseInt(g_data.matrix[i][j].first_date.substr(5, 2), 10) <= 3)
+							year--;
+						div.innerHTML = year;
 						div.style.fontSize = "6px";
 						break;
+					}
 					case MODE_FIRST_GAME:
 						div.innerHTML = g_data.matrix[i][j].first_date.substr(0, 4);
 						div.style.fontSize = "6px";
@@ -316,7 +388,6 @@ function changeMode() {
 						div.innerHTML = g_data.matrix[i][j].last_date.substr(0, 4);
 						div.style.fontSize = "6px";
 						break;
-					case MODE_COUNT:
 					/* falls through */
 					default:
 						div.innerHTML = g_data.matrix[i][j].count;
@@ -327,7 +398,7 @@ function changeMode() {
 		}
 	}
 
-	var countSwitchText = document.getElementById("countSwitchText");
+	const countSwitchText = document.getElementById("countSwitchText");
 	if (countSwitchText) {
 		switch (g_mode) {
 			case MODE_FIRST_GAME_SEASON:
@@ -339,7 +410,6 @@ function changeMode() {
 			case MODE_EHLER:
 				countSwitchText.innerHTML = "Show Year";
 				break;
-			case MODE_COUNT:
 			/* falls through */
 			default:
 				countSwitchText.innerHTML = "Show Count";
@@ -353,11 +423,6 @@ function changeMode() {
 		case MODE_FIRST_GAME:
 			showSlider();
 			break;
-		case MODE_LAST_GAME:
-		/* falls through */
-		case MODE_EHLER:
-		/* falls through */
-		case MODE_COUNT:
 		/* falls through */
 		default:
 			hideSlider();
@@ -365,11 +430,11 @@ function changeMode() {
 	}
 
 	if (g_mode === MODE_EHLER) {
-		for (var i = 0; i <= g_data.maxpts; i++) {
-			for (var j = i; j <= g_data.maxpts; j++) {
-				var cell = document.getElementById("cell_" + i + "-" + j);
-				if (cell && cell.classList.contains("green")) {
-					var year = parseInt(g_data.matrix[i][j].last_date.substr(0, 4));
+		for (let i = 0; i <= g_data.maxpts; i++) {
+			for (let j = i; j <= g_data.maxpts; j++) {
+				const cell = document.getElementById(`cell_${i}-${j}`);
+				if (cell?.classList.contains("green")) {
+					const year = parseInt(g_data.matrix[i][j].last_date.substr(0, 4), 10);
 					if (year < 2013) {
 						cell.classList.add("later");
 					}
@@ -378,8 +443,8 @@ function changeMode() {
 		}
 	}
 
-	var spectrumLogarithmic = document.getElementById("hueSpectrumLogarithmic");
-	var spectrumLinear = document.getElementById("hueSpectrumLinear");
+	const spectrumLogarithmic = document.getElementById("hueSpectrumLogarithmic");
+	const spectrumLinear = document.getElementById("hueSpectrumLinear");
 	if (spectrumLogarithmic && spectrumLinear) {
 		switch (g_mode) {
 			case MODE_FIRST_GAME_SEASON:
@@ -394,7 +459,6 @@ function changeMode() {
 				spectrumLinear.classList.remove("hidden");
 				spectrumLinear.classList.add("invisible");
 				break;
-			case MODE_COUNT:
 			/* falls through */
 			default:
 				spectrumLogarithmic.classList.add("invisible");
@@ -405,10 +469,10 @@ function changeMode() {
 		}
 	}
 
-	var colorblindSwitch = document.getElementById("colorblindSwitch");
-	var countSwitch = document.getElementById("countSwitch");
-	var gradientSwitch = document.getElementById("gradientSwitch");
-	var emptyRowsSwitch = document.getElementById("emptyRowsSwitch");
+	const colorblindSwitch = document.getElementById("colorblindSwitch");
+	const countSwitch = document.getElementById("countSwitch");
+	const gradientSwitch = document.getElementById("gradientSwitch");
+	const emptyRowsSwitch = document.getElementById("emptyRowsSwitch");
 
 	toggleColorblind(colorblindSwitch.checked);
 	toggleNumber(countSwitch.checked);
@@ -417,7 +481,7 @@ function changeMode() {
 }
 
 function showSlider() {
-	var sliderContainer = document.getElementById("sliderContainer");
+	const sliderContainer = document.getElementById("sliderContainer");
 	if (sliderContainer) {
 		sliderContainer.classList.remove("invisible");
 	}
@@ -425,14 +489,14 @@ function showSlider() {
 }
 
 function hideSlider() {
-	var sliderContainer = document.getElementById("sliderContainer");
+	const sliderContainer = document.getElementById("sliderContainer");
 	if (sliderContainer) {
 		sliderContainer.classList.add("invisible");
 	}
 
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = i; j <= g_data.maxpts; j++) {
-			var cell = document.getElementById("cell_" + i + "-" + j);
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = i; j <= g_data.maxpts; j++) {
+			const cell = document.getElementById(`cell_${i}-${j}`);
 			if (cell) {
 				cell.classList.remove("later");
 				cell.classList.remove("red");
@@ -442,49 +506,50 @@ function hideSlider() {
 }
 
 function changeYearSlider() {
-	var value = parseInt(document.getElementById("yearSlider").value);
+	const value = parseInt(document.getElementById("yearSlider").value, 10);
 
-	var sliderValue = document.getElementById("sliderValue");
+	const sliderValue = document.getElementById("sliderValue");
 	if (sliderValue) {
 		sliderValue.innerHTML = value;
-		if (g_mode == MODE_FIRST_GAME_SEASON) // && value >= 1969)
-		{
-			var nextvalue = value + 1;
-			sliderValue.innerHTML += " - " + nextvalue;
+		if (g_mode === MODE_FIRST_GAME_SEASON) {
+			// && value >= 1969)
+			const nextvalue = value + 1;
+			sliderValue.innerHTML += ` - ${nextvalue}`;
 		}
 	}
 
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = i; j <= g_data.maxpts; j++) {
-			var cell = document.getElementById("cell_" + i + "-" + j);
-			if (cell && cell.classList.contains("green")) {
-				var year = parseInt(g_data.matrix[i][j].first_date.substr(0, 4));
-				if (g_mode == MODE_FIRST_GAME_SEASON && parseInt(g_data.matrix[i][j].first_date.substr(5, 2)) <= 3) year--;
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = i; j <= g_data.maxpts; j++) {
+			const cell = document.getElementById(`cell_${i}-${j}`);
+			if (cell?.classList.contains("green")) {
+				let year = parseInt(g_data.matrix[i][j].first_date.substr(0, 4), 10);
+				if (
+					g_mode === MODE_FIRST_GAME_SEASON &&
+					parseInt(g_data.matrix[i][j].first_date.substr(5, 2), 10) <= 3
+				)
+					year--;
 				if (year > value) {
 					cell.classList.add("later");
 					cell.classList.remove("red");
-				}
-				else if (year === value) {
+				} else if (year === value) {
 					cell.classList.add("red");
 					cell.classList.remove("later");
-				}
-				else {
+				} else {
 					cell.classList.remove("red");
 					cell.classList.remove("later");
 				}
 			}
 		}
 	}
-
 }
 
 //shades the cells based on the number of times that score has been achieved
 function toggleGradient(on) {
-	var matrix = g_data.matrix;
+	const matrix = g_data.matrix;
 
-	var max;
-	var min;
-	var colorblind = document.getElementById("colorblindSwitch").checked;
+	let max;
+	let min;
+	const colorblind = document.getElementById("colorblindSwitch").checked;
 
 	switch (g_mode) {
 		case MODE_FIRST_GAME_SEASON:
@@ -499,7 +564,6 @@ function toggleGradient(on) {
 			max = new Date().getFullYear();
 			min = 2013;
 			break;
-		case MODE_COUNT:
 		/* falls through */
 		default:
 			max = Math.log(g_data.maxcount);
@@ -507,75 +571,94 @@ function toggleGradient(on) {
 			break;
 	}
 
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = i; j <= g_data.maxpts; j++) {
-			var cell = document.getElementById("cell_" + i + "-" + j);
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = i; j <= g_data.maxpts; j++) {
+			const cell = document.getElementById(`cell_${i}-${j}`);
 			if (cell) {
 				if (on) {
 					cell.classList.add("gradient");
 					if (cell.classList.contains("green")) {
 						if (colorblind) {
-							var r;
-							var g;
-							var b;
-							var rDiff = COLORBLIND_START_R - COLORBLIND_END_R;
-							var gDiff = COLORBLIND_START_G - COLORBLIND_END_G;
-							var bDiff = COLORBLIND_START_B - COLORBLIND_END_B;
+							let r;
+							let g;
+							let b;
+							const rDiff = COLORBLIND_START_R - COLORBLIND_END_R;
+							const gDiff = COLORBLIND_START_G - COLORBLIND_END_G;
+							const bDiff = COLORBLIND_START_B - COLORBLIND_END_B;
 							switch (g_mode) {
 								case MODE_FIRST_GAME_SEASON:
 								/* falls through */
-								case MODE_FIRST_GAME:
-									var year = parseInt(matrix[i][j].first_date.substr(0, 4));
-									r = COLORBLIND_START_R - rDiff * (year - min) / (max - min);
-									g = COLORBLIND_START_G - gDiff * (year - min) / (max - min);
-									b = COLORBLIND_START_B - bDiff * (year - min) / (max - min);
+								case MODE_FIRST_GAME: {
+									const year = parseInt(
+										matrix[i][j].first_date.substr(0, 4),
+										10,
+									);
+									r = COLORBLIND_START_R - (rDiff * (year - min)) / (max - min);
+									g = COLORBLIND_START_G - (gDiff * (year - min)) / (max - min);
+									b = COLORBLIND_START_B - (bDiff * (year - min)) / (max - min);
 									break;
+								}
 								case MODE_LAST_GAME:
 								/* falls through */
-								case MODE_EHLER:
-									var year = parseInt(matrix[i][j].last_date.substr(0, 4));
-									r = COLORBLIND_START_R - rDiff * (year - min) / (max - min);
-									g = COLORBLIND_START_G - gDiff * (year - min) / (max - min);
-									b = COLORBLIND_START_B - bDiff * (year - min) / (max - min);
+								case MODE_EHLER: {
+									const year = parseInt(
+										matrix[i][j].last_date.substr(0, 4),
+										10,
+									);
+									r = COLORBLIND_START_R - (rDiff * (year - min)) / (max - min);
+									g = COLORBLIND_START_G - (gDiff * (year - min)) / (max - min);
+									b = COLORBLIND_START_B - (bDiff * (year - min)) / (max - min);
 									break;
-								case MODE_COUNT:
+								}
 								/* falls through */
 								default:
-									r = COLORBLIND_START_R - rDiff * Math.log(matrix[i][j].count) / max;
-									g = COLORBLIND_START_G - gDiff * Math.log(matrix[i][j].count) / max;
-									b = COLORBLIND_START_B - bDiff * Math.log(matrix[i][j].count) / max;
+									r =
+										COLORBLIND_START_R -
+										(rDiff * Math.log(matrix[i][j].count)) / max;
+									g =
+										COLORBLIND_START_G -
+										(gDiff * Math.log(matrix[i][j].count)) / max;
+									b =
+										COLORBLIND_START_B -
+										(bDiff * Math.log(matrix[i][j].count)) / max;
 									break;
 							}
-							cell.style.backgroundColor = "rgba(" + r + "," + g + "," + b + ",1)";
-						}
-						else {
+							cell.style.backgroundColor = `rgba(${r},${g},${b},1)`;
+						} else {
 							// var alpha = 0.9 * matrix[i][j].count / g_data.maxcount + 0.1;
 							// cell.style.backgroundColor = "rgba(0,128,0," + alpha + ")";
-							var hue;
+							let hue;
 							switch (g_mode) {
 								case MODE_FIRST_GAME_SEASON:
 								/* falls through */
-								case MODE_FIRST_GAME:
-									var year = parseInt(matrix[i][j].first_date.substr(0, 4));
-									hue = MAX_HUE - MAX_HUE * (year - min) / (max - min);
+								case MODE_FIRST_GAME: {
+									const year = parseInt(
+										matrix[i][j].first_date.substr(0, 4),
+										10,
+									);
+									hue = MAX_HUE - (MAX_HUE * (year - min)) / (max - min);
 									break;
+								}
 								case MODE_LAST_GAME:
 								/* falls through */
-								case MODE_EHLER:
-									var year = parseInt(matrix[i][j].last_date.substr(0, 4));
-									hue = MAX_HUE - MAX_HUE * (year - min) / (max - min);
+								case MODE_EHLER: {
+									const year = parseInt(
+										matrix[i][j].last_date.substr(0, 4),
+										10,
+									);
+									hue = MAX_HUE - (MAX_HUE * (year - min)) / (max - min);
 									break;
-								case MODE_COUNT:
+								}
 								/* falls through */
 								default:
-									hue = MAX_HUE - MAX_HUE * Math.log(matrix[i][j].count) / max;
+									hue =
+										MAX_HUE - (MAX_HUE * Math.log(matrix[i][j].count)) / max;
 									break;
 							}
-							cell.style.backgroundColor = "hsl(" + hue + ",50%,50%)";
+							cell.style.backgroundColor = `hsl(${hue},50%,50%)`;
 						}
 					}
-				}
-				else {
+				} else {
 					cell.classList.remove("gradient");
 					if (cell.classList.contains("green")) {
 						cell.style.backgroundColor = "";
@@ -584,48 +667,50 @@ function toggleGradient(on) {
 			}
 		}
 	}
-	var spectrumLogarithmic = document.getElementById("hueSpectrumLogarithmic");
+	const spectrumLogarithmic = document.getElementById("hueSpectrumLogarithmic");
 	if (spectrumLogarithmic && g_mode === MODE_COUNT) {
 		if (on && !colorblind) {
 			spectrumLogarithmic.classList.remove("invisible");
-		}
-		else {
+		} else {
 			spectrumLogarithmic.classList.add("invisible");
 		}
 	}
-	var spectrumLinear = document.getElementById("hueSpectrumLinear");
-	if (spectrumLinear && (g_mode === MODE_FIRST_GAME_SEASON || g_mode === MODE_FIRST_GAME || g_mode === MODE_LAST_GAME || g_mode === MODE_EHLER)) {
+	const spectrumLinear = document.getElementById("hueSpectrumLinear");
+	if (
+		spectrumLinear &&
+		(g_mode === MODE_FIRST_GAME_SEASON ||
+			g_mode === MODE_FIRST_GAME ||
+			g_mode === MODE_LAST_GAME ||
+			g_mode === MODE_EHLER)
+	) {
 		if (on && !colorblind) {
 			spectrumLinear.classList.remove("invisible");
-		}
-		else {
+		} else {
 			spectrumLinear.classList.add("invisible");
 		}
 	}
 }
 
 function toggleColorblind(on) {
-	var body = document.getElementById("body");
+	const body = document.getElementById("body");
 	if (on) {
 		body.classList.add("colorblind");
-	}
-	else {
+	} else {
 		body.classList.remove("colorblind");
 	}
 
-	var gradientSwitch = document.getElementById("gradientSwitch");
+	const gradientSwitch = document.getElementById("gradientSwitch");
 	toggleGradient(gradientSwitch.checked);
 }
 
 function toggleNumber(on) {
-	for (var i = 0; i <= g_data.maxpts; i++) {
-		for (var j = i; j <= g_data.maxpts; j++) {
-			var div = document.getElementById("count_" + i + "-" + j);
+	for (let i = 0; i <= g_data.maxpts; i++) {
+		for (let j = i; j <= g_data.maxpts; j++) {
+			const div = document.getElementById(`count_${i}-${j}`);
 			if (div) {
 				if (on) {
 					div.classList.remove("hidden");
-				}
-				else {
+				} else {
 					div.classList.add("hidden");
 				}
 			}
@@ -634,13 +719,12 @@ function toggleNumber(on) {
 }
 
 function toggleEmptyRows(on) {
-	for (var i = g_data.maxlosepts + 1; i <= g_data.maxpts; i++) {
-		var row = document.getElementById("row_" + i);
+	for (let i = g_data.maxlosepts + 1; i <= g_data.maxpts; i++) {
+		const row = document.getElementById(`row_${i}`);
 		if (row) {
 			if (on) {
 				row.classList.remove("hidden");
-			}
-			else {
+			} else {
 				row.classList.add("hidden");
 			}
 		}
@@ -650,29 +734,28 @@ function toggleEmptyRows(on) {
 //called when user moves mouse over an element
 //adds adjhover class to all elements in the same row and column as the hovered element
 function mouseOver(i, j) {
-	for (var k = 0; k <= g_data.maxpts; k++) {
-		var cell = document.getElementById("hover_" + i + "-" + k);
+	for (let k = 0; k <= g_data.maxpts; k++) {
+		let cell = document.getElementById(`hover_${i}-${k}`);
 		if (cell && k !== j) {
 			cell.classList.add("adjhover");
-		}
-		else if (k === j) {
+		} else if (k === j) {
 			cell.classList.add("over");
 		}
-		cell = document.getElementById("hover_" + k + "-" + j);
+		cell = document.getElementById(`hover_${k}-${j}`);
 		if (cell && k !== i) {
 			cell.classList.add("adjhover");
 		}
 	}
-	var colHeader = document.getElementById("colHeader_" + j);
+	const colHeader = document.getElementById(`colHeader_${j}`);
 	colHeader.classList.add("adjhover");
-	var rowHeader = document.getElementById("rowHeader_" + i);
+	const rowHeader = document.getElementById(`rowHeader_${i}`);
 	rowHeader.classList.add("adjhover");
-	var specialHeader2 = document.getElementById("specialHeader_" + (j + 1));
+	const specialHeader2 = document.getElementById(`specialHeader_${j + 1}`);
 	if (specialHeader2) {
 		specialHeader2.innerHTML = j;
 		specialHeader2.classList.add("adjhover");
 	}
-	var specialHeader = document.getElementById("specialHeader_" + i);
+	const specialHeader = document.getElementById(`specialHeader_${i}`);
 	if (specialHeader) {
 		specialHeader.innerHTML = i;
 		specialHeader.classList.add("adjhover");
@@ -682,29 +765,28 @@ function mouseOver(i, j) {
 //called when moves mouse off an element
 //removes adjhover class to all elements in the same row and column as the hovered element
 function mouseOff(i, j) {
-	for (var k = 0; k <= g_data.maxpts; k++) {
-		var cell = document.getElementById("hover_" + i + "-" + k);
+	for (let k = 0; k <= g_data.maxpts; k++) {
+		let cell = document.getElementById(`hover_${i}-${k}`);
 		if (cell && k !== j) {
 			cell.classList.remove("adjhover");
-		}
-		else if (k === j) {
+		} else if (k === j) {
 			cell.classList.remove("over");
 		}
-		cell = document.getElementById("hover_" + k + "-" + j);
+		cell = document.getElementById(`hover_${k}-${j}`);
 		if (cell && k !== i) {
 			cell.classList.remove("adjhover");
 		}
 	}
-	var colHeader = document.getElementById("colHeader_" + j);
+	const colHeader = document.getElementById(`colHeader_${j}`);
 	colHeader.classList.remove("adjhover");
-	var rowHeader = document.getElementById("rowHeader_" + i);
+	const rowHeader = document.getElementById(`rowHeader_${i}`);
 	rowHeader.classList.remove("adjhover");
-	var specialHeader2 = document.getElementById("specialHeader_" + (j + 1));
+	const specialHeader2 = document.getElementById(`specialHeader_${j + 1}`);
 	if (specialHeader2) {
 		specialHeader2.innerHTML = "";
 		specialHeader2.classList.remove("adjhover");
 	}
-	var specialHeader = document.getElementById("specialHeader_" + i);
+	const specialHeader = document.getElementById(`specialHeader_${i}`);
 	if (specialHeader) {
 		specialHeader.innerHTML = "";
 		specialHeader.classList.remove("adjhover");
@@ -713,63 +795,80 @@ function mouseOff(i, j) {
 
 function onClick(i, j) {
 	hideHelper();
-	var data = g_data.matrix[i][j];
-	var infoBox = document.getElementById("infoBox");
-	var cell = document.getElementById("cell_" + i + "-" + j);
+	const data = g_data.matrix[i][j];
+	const infoBox = document.getElementById("infoBox");
+	const cell = document.getElementById(`cell_${i}-${j}`);
 	if (infoBox) {
 		infoBox.classList.add("hidden");
 
 		if (cell && !cell.classList.contains("later") && data.count > 0) {
-			var htmlString = "";
+			let htmlString = "";
 
-			htmlString += "<span id=infoBoxScore>Score: " + j + "-" + i + "</span> ";
+			htmlString += `<span id=infoBoxScore>Score: ${j}-${i}</span> `;
 			if (data.count > 1) {
-				htmlString += "(<a href='https://www.pro-football-reference.com/boxscores/game_scores_find.cgi?pts_win=" + j + "&pts_lose=" + i + "'>view all " + data.count + " games</a>)";
+				htmlString +=
+					"(<a href='https://www.pro-football-reference.com/boxscores/game_scores_find.cgi?pts_win=" +
+					j +
+					"&pts_lose=" +
+					i +
+					"'>view all " +
+					data.count +
+					" games</a>)";
 			}
 
-			htmlString += "<span id='infoBoxClose' onclick='closeInfoBox()'>(<u>close</u>)</span>";
+			htmlString +=
+				"<span id='infoBoxClose' onclick='closeInfoBox()'>(<u>close</u>)</span>";
 
-			var dateOptions = { year: "numeric", month: "long", day: "numeric", timeZone: "America/New_York" };
-			var firstDate = new Date(data.first_date).toLocaleDateString("en-US", dateOptions);
+			const dateOptions = {
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+				timeZone: "America/New_York",
+			};
+			const firstDate = new Date(data.first_date).toLocaleDateString(
+				"en-US",
+				dateOptions,
+			);
 
 			htmlString += "<br/>First Game: ";
 			if (i !== j) {
 				htmlString += "<b>";
 			}
-			htmlString += data.first_team_win + " " + j + " ";
+			htmlString += `${data.first_team_win} ${j} `;
 			if (i !== j) {
 				htmlString += "</b>";
 			}
 			if (data.first_team_win === data.first_team_home) {
 				htmlString += "vs";
-			}
-			else {
+			} else {
 				htmlString += "@";
 			}
-			htmlString += " " + i + " " + data.first_team_lose + " | ";
-			htmlString += firstDate + " ";
-			htmlString += "(<a href='" + data.first_link + "'>boxscore</a>)<br/>";
+			htmlString += ` ${i} ${data.first_team_lose} | `;
+			htmlString += `${firstDate} `;
+			htmlString += `(<a href='${data.first_link}'>boxscore</a>)<br/>`;
 
 			if (data.count > 1) {
-				var lastDate = new Date(data.last_date).toLocaleDateString("en-US", dateOptions);
+				const lastDate = new Date(data.last_date).toLocaleDateString(
+					"en-US",
+					dateOptions,
+				);
 
 				htmlString += "Latest Game: ";
 				if (i !== j) {
 					htmlString += "<b>";
 				}
-				htmlString += data.last_team_win + " " + j + " ";
+				htmlString += `${data.last_team_win} ${j} `;
 				if (i !== j) {
 					htmlString += "</b>";
 				}
 				if (data.last_team_win === data.last_team_home) {
 					htmlString += "vs";
-				}
-				else {
+				} else {
 					htmlString += "@";
 				}
-				htmlString += " " + i + " " + data.last_team_lose + " | ";
-				htmlString += lastDate + " ";
-				htmlString += "(<a href='" + data.last_link + "'>boxscore</a>)<br/>";
+				htmlString += ` ${i} ${data.last_team_lose} | `;
+				htmlString += `${lastDate} `;
+				htmlString += `(<a href='${data.last_link}'>boxscore</a>)<br/>`;
 			}
 			infoBox.innerHTML = htmlString;
 			infoBox.classList.remove("hidden");
@@ -779,20 +878,34 @@ function onClick(i, j) {
 			infoBox.style.width = "";
 			infoBox.style.top = 0;
 
-			var INFOBOX_OUTER_PIXELS = 5; //determined by infobox padding + border in common.css
-			var cellRect = cell.getBoundingClientRect();
-			var infoBoxRect = infoBox.getBoundingClientRect();
-			var windowRight = window.pageXOffset + document.documentElement.clientWidth;
-			var boxLeft;
-			var boxRight;
+			const INFOBOX_OUTER_PIXELS = 5; //determined by infobox padding + border in common.css
+			const cellRect = cell.getBoundingClientRect();
+			let infoBoxRect = infoBox.getBoundingClientRect();
+			const windowRight =
+				window.pageXOffset + document.documentElement.clientWidth;
+			let boxLeft;
+			let boxRight;
 			//if the box would extend past the right side of the screen, place it on the right side of the screen
-			if (window.pageXOffset + cellRect.x - (infoBoxRect.width + cellRect.width) / 2 + infoBoxRect.width + 2 * INFOBOX_OUTER_PIXELS > windowRight) {
-				boxRight = document.body.offsetWidth - document.documentElement.clientWidth - window.pageXOffset;
+			if (
+				window.pageXOffset +
+					cellRect.x -
+					(infoBoxRect.width + cellRect.width) / 2 +
+					infoBoxRect.width +
+					2 * INFOBOX_OUTER_PIXELS >
+				windowRight
+			) {
+				boxRight =
+					document.body.offsetWidth -
+					document.documentElement.clientWidth -
+					window.pageXOffset;
 				boxLeft = Math.floor(windowRight - infoBoxRect.width);
 			}
 			//otherwise center it horizontally on the clicked cell
 			else {
-				boxLeft = window.pageXOffset + cellRect.x - (infoBoxRect.width + cellRect.width) / 2;
+				boxLeft =
+					window.pageXOffset +
+					cellRect.x -
+					(infoBoxRect.width + cellRect.width) / 2;
 				infoBox.style.width = infoBoxRect.width;
 			}
 			//if the box would extend past the left side of the screen, place it on the left side of the screen
@@ -804,38 +917,45 @@ function onClick(i, j) {
 			infoBoxRect = infoBox.getBoundingClientRect();
 			//place it above the cell, unless it would extend past the top of the screen
 			if (cellRect.y - infoBoxRect.height - 2 * INFOBOX_OUTER_PIXELS < 0) {
-				infoBox.style.top = window.pageYOffset + cellRect.y + cellRect.height - 2 * INFOBOX_OUTER_PIXELS;
-			}
-			else {
-				infoBox.style.top = window.pageYOffset + cellRect.y - infoBoxRect.height - 2 * INFOBOX_OUTER_PIXELS;
+				infoBox.style.top =
+					window.pageYOffset +
+					cellRect.y +
+					cellRect.height -
+					2 * INFOBOX_OUTER_PIXELS;
+			} else {
+				infoBox.style.top =
+					window.pageYOffset +
+					cellRect.y -
+					infoBoxRect.height -
+					2 * INFOBOX_OUTER_PIXELS;
 			}
 		}
 	}
 }
 
 /* exported closeInfoBox */
-function closeInfoBox() {
-	var infoBox = document.getElementById("infoBox");
+function _closeInfoBox() {
+	const infoBox = document.getElementById("infoBox");
 	if (infoBox) {
 		infoBox.classList.add("hidden");
 	}
 }
 
 function hideHelper() {
-	var helper = document.getElementById("helper");
+	const helper = document.getElementById("helper");
 	if (helper) {
 		helper.classList.add("hidden");
 	}
 }
 
 function renderLiveGames() {
-	var liveGames = document.getElementById("liveGamesContent");
-	var relevantInfo = [];
+	const liveGames = document.getElementById("liveGamesContent");
+	const relevantInfo = [];
 	if (liveGames) {
-		var htmlString = "";
+		let htmlString = "";
 
-		for (var i = 0; i < g_liveGames.length; i++) {
-			var game = g_liveGames[i];
+		for (let i = 0; i < g_liveGames.length; i++) {
+			const game = g_liveGames[i];
 
 			// if(debug)
 			// {
@@ -857,23 +977,22 @@ function renderLiveGames() {
 			// 		game.clock = "15:00";
 			// 	}
 			// }
-			var phase = game.status.type.name;
-			var homeScore = null;
-			var awayScore = null;
-			var homeNick = "";
-			var awayNick = "";
-			var homeAbbr = "";
-			var awayAbbr = "";
+			const phase = game.status.type.name;
+			let homeScore = null;
+			let awayScore = null;
+			let homeNick = "";
+			let awayNick = "";
+			let homeAbbr = "";
+			let awayAbbr = "";
 
-			for (let competitorIndex in game.competitions[0].competitors) {
-				var competitor = game.competitions[0].competitors[competitorIndex];
+			for (const competitorIndex in game.competitions[0].competitors) {
+				const competitor = game.competitions[0].competitors[competitorIndex];
 				if (competitor.homeAway === "home") {
-					homeScore = parseInt(competitor.score);
+					homeScore = parseInt(competitor.score, 10);
 					homeNick = competitor.team.shortDisplayName;
 					homeAbbr = competitor.team.abbreviation;
-				}
-				else {
-					awayScore = parseInt(competitor.score);
+				} else {
+					awayScore = parseInt(competitor.score, 10);
 					awayNick = competitor.team.shortDisplayName;
 					awayAbbr = competitor.team.abbreviation;
 				}
@@ -881,56 +1000,82 @@ function renderLiveGames() {
 
 			relevantInfo.push({ homeScore: homeScore, awayScore: awayScore });
 
-			var newUpdate = false;
-			if (g_prevLiveGames && (g_prevLiveGames[i].awayScore !== awayScore || g_prevLiveGames[i].homeScore !== homeScore)) {
+			let newUpdate = false;
+			if (
+				g_prevLiveGames &&
+				(g_prevLiveGames[i].awayScore !== awayScore ||
+					g_prevLiveGames[i].homeScore !== homeScore)
+			) {
 				newUpdate = true;
 			}
 			//console.log(game);
 			htmlString += "<div class='liveGameContainer'>";
 
-			htmlString += "<div id='liveGame_" + i + "' class='liveGame";
+			htmlString += `<div id='liveGame_${i}' class='liveGame`;
 
-			var liveGame = document.getElementById("liveGame_" + i);
-			if (liveGame && liveGame.classList.contains("selected")) {
+			const liveGame = document.getElementById(`liveGame_${i}`);
+			if (liveGame?.classList.contains("selected")) {
 				htmlString += " selected";
 				moveSelectedCell(i);
 			}
 
-			if (newUpdate || (liveGame && liveGame.classList.contains("newUpdate"))) {
+			if (newUpdate || liveGame?.classList.contains("newUpdate")) {
 				htmlString += " newUpdate";
 				if (document.hasFocus()) {
 					clearUpdate();
 				}
 			}
 
-			htmlString += "' onclick='liveGameClick(" + i + ");'>";
+			htmlString += `' onclick='liveGameClick(${i});'>`;
 			htmlString += "<div class='liveGameContent'>";
 			htmlString += "<div class='teams'>";
-			htmlString += "<div class='teamInfo'><div class='img' style='background-image:url(\"../images/teams/" + awayAbbr + ".png\")'></div>";
+			htmlString +=
+				"<div class='teamInfo'><div class='img' style='background-image:url(\"../images/teams/" +
+				awayAbbr +
+				".png\")'></div>";
 			htmlString += awayNick;
-			if (phase === "STATUS_IN_PROGRESS" || phase === "STATUS_HALFTIME" || phase === "STATUS_SUSPENDED" || phase === "STATUS_FINAL" || phase === "STATUS_FINAL_OVERTIME" || phase === "STATUS_END_PERIOD") {
+			if (
+				phase === "STATUS_IN_PROGRESS" ||
+				phase === "STATUS_HALFTIME" ||
+				phase === "STATUS_SUSPENDED" ||
+				phase === "STATUS_FINAL" ||
+				phase === "STATUS_FINAL_OVERTIME" ||
+				phase === "STATUS_END_PERIOD"
+			) {
 				// if(game.score.possessionTeamAbbr === game.gameSchedule.visitorTeamAbbr && phase !== "HALFTIME" && phase !== "FINAL" && phase !== "FINAL_OVERTIME")
 				// {
 				// 	htmlString += " &bull;";
 				// }
-				htmlString += "<span class='teamScore'>" + awayScore + "</span>";
+				htmlString += `<span class='teamScore'>${awayScore}</span>`;
 			}
 			htmlString += "</div>";
-			htmlString += "<div class='teamInfo'><div class='img' style='background-image:url(\"../images/teams/" + homeAbbr + ".png\")'></div>";
+			htmlString +=
+				"<div class='teamInfo'><div class='img' style='background-image:url(\"../images/teams/" +
+				homeAbbr +
+				".png\")'></div>";
 			htmlString += homeNick;
-			if (phase === "STATUS_IN_PROGRESS" || phase === "STATUS_HALFTIME" || phase === "STATUS_SUSPENDED" || phase === "STATUS_FINAL" || phase === "STATUS_FINAL_OVERTIME" || phase === "STATUS_END_PERIOD") {
+			if (
+				phase === "STATUS_IN_PROGRESS" ||
+				phase === "STATUS_HALFTIME" ||
+				phase === "STATUS_SUSPENDED" ||
+				phase === "STATUS_FINAL" ||
+				phase === "STATUS_FINAL_OVERTIME" ||
+				phase === "STATUS_END_PERIOD"
+			) {
 				// if(game.score.possessionTeamAbbr === game.gameSchedule.homeTeamAbbr && phase !== "HALFTIME" && phase !== "FINAL" && phase !== "FINAL_OVERTIME")
 				// {
 				// 	htmlString += " &bull;";
 				// }
-				htmlString += "<span class='teamScore'>" + homeScore + "</span>";
+				htmlString += `<span class='teamScore'>${homeScore}</span>`;
 			}
 			htmlString += "</div>";
 			htmlString += "</div>";
 			htmlString += "<div class='gameInfoWrapper'><div class='gameInfo'>";
 			switch (phase) {
 				case "STATUS_IN_PROGRESS":
-					htmlString += game.status.type.detail.replace(" - ", "<br/>").replace(" Quarter", "");
+					htmlString += game.status.type.detail
+						.replace(" - ", "<br/>")
+						.replace(" Quarter", "");
 					break;
 				case "STATUS_HALFTIME":
 					htmlString += "Halftime";
@@ -939,66 +1084,99 @@ function renderLiveGames() {
 					htmlString += "<span style='font-size: 12px'>Suspended</span>";
 					break;
 				case "STATUS_END_PERIOD":
-					htmlString += game.status.type.detail.replace(" of ", "<br/>").replace(" Quarter", "");
+					htmlString += game.status.type.detail
+						.replace(" of ", "<br/>")
+						.replace(" Quarter", "");
 					break;
 				case "STATUS_FINAL":
 					htmlString += "Final";
 					break;
-				default:
-					var date = new Date(game.date);
-					var day;
+				default: {
+					const date = new Date(game.date);
+					let day;
 					//check if the game is within the next week, if yes display weekday, if no display date and change title to "Upcoming Games"
 					if (Date.now() + 604800000 >= date.getTime()) {
-						day = (date.toLocaleDateString("en-US", { weekday: "short" }));
+						day = date.toLocaleDateString("en-US", { weekday: "short" });
+					} else {
+						day = date.toLocaleDateString("en-US", {
+							month: "short",
+							day: "numeric",
+						});
+						document.getElementById("liveGamesTitle").innerHTML =
+							"Upcoming Games";
 					}
-					else {
-						day = (date.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
-						document.getElementById("liveGamesTitle").innerHTML = "Upcoming Games";
-					}
-					var time = (date.toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric" }));
-					htmlString += day + "<br />" + time;
+					const time = date.toLocaleTimeString("en-US", {
+						hour: "numeric",
+						minute: "numeric",
+					});
+					htmlString += `${day}<br />${time}`;
 					break;
+				}
 			}
 			htmlString += "</div></div></div>";
 			htmlString += "<div class='liveGameFooter'>";
 
 			//if game is preseason or probowl
 			//TODO: double check that type 3 is postseason and other types are exhibition games
-			if ((game.season.type !== 2 && game.season.type !== 3) || game.competitions[0].type.abbreviation == "ALLSTAR") {
+			if (
+				(game.season.type !== 2 && game.season.type !== 3) ||
+				game.competitions[0].type.abbreviation === "ALLSTAR"
+			) {
 				htmlString += "Untracked Exhibition Game";
 			}
 			//if game is over
-			else if (phase === "STATUS_FINAL" || phase == "STATUS_FINAL_OVERTIME") {
-				var highScore = (awayScore > homeScore ? awayScore : homeScore);
-				var lowScore = (awayScore > homeScore ? homeScore : awayScore);
-				var matrix = g_data.matrix;
-				if (g_data.newScorigami.includes(game.id) || !matrix[lowScore] || !matrix[lowScore][highScore] || matrix[lowScore][highScore].count === 0) {
+			else if (phase === "STATUS_FINAL" || phase === "STATUS_FINAL_OVERTIME") {
+				const highScore = awayScore > homeScore ? awayScore : homeScore;
+				const lowScore = awayScore > homeScore ? homeScore : awayScore;
+				const matrix = g_data.matrix;
+				if (
+					g_data.newScorigami.includes(game.id) ||
+					!matrix[lowScore] ||
+					!matrix[lowScore][highScore] ||
+					matrix[lowScore][highScore].count === 0
+				) {
 					htmlString += "<span class='newScorigami'>SCORIGAMI!</span>";
-				}
-				else {
-					htmlString += "No Scorigami (" + matrix[lowScore][highScore].count + ")";
+				} else {
+					htmlString += `No Scorigami (${matrix[lowScore][highScore].count})`;
 				}
 			}
 			//if game is ongoing
-			else if (phase === "STATUS_IN_PROGRESS" || phase === "STATUS_HALFTIME" || phase === "STATUS_END_PERIOD") {
-				var probability = getScorigamiProbability(game);
-				htmlString += "Chance of Scorigami: " + probability + "%";
+			else if (
+				phase === "STATUS_IN_PROGRESS" ||
+				phase === "STATUS_HALFTIME" ||
+				phase === "STATUS_END_PERIOD"
+			) {
+				const probability = getScorigamiProbability(game);
+				htmlString += `Chance of Scorigami: ${probability}%`;
 			}
 			//if game is upcoming
 			else {
-				var date = new Date(game.date).toLocaleDateString('en-US', { timeZone: "America/New_York", year: 'numeric', month: '2-digit', day: '2-digit' });
+				let date = new Date(game.date).toLocaleDateString("en-US", {
+					timeZone: "America/New_York",
+					year: "numeric",
+					month: "2-digit",
+					day: "2-digit",
+				});
 				date = date.substr(6, 4) + date.substr(0, 2) + date.substr(3, 2);
 
-				htmlString += "<a href='https://www.pro-football-reference.com/boxscores/" + date + "0" + getShorthandName(homeAbbr) + ".htm'>Game Preview</a>";
+				htmlString +=
+					"<a href='https://www.pro-football-reference.com/boxscores/" +
+					date +
+					"0" +
+					getShorthandName(homeAbbr) +
+					".htm'>Game Preview</a>";
 			}
 			htmlString += "</div></div></div>";
 
-			htmlString += "<div id='liveGameSeparator_" + i + "' class='liveGameSeparator'></div>"
+			htmlString +=
+				"<div id='liveGameSeparator_" +
+				i +
+				"' class='liveGameSeparator'></div>";
 		}
 
 		liveGames.innerHTML = htmlString;
 
-		var liveGamesContainer = document.getElementById("liveGamesContainer");
+		const liveGamesContainer = document.getElementById("liveGamesContainer");
 		if (g_liveGames.length >= 1 && liveGamesContainer) {
 			liveGamesContainer.classList.remove("hidden");
 		}
@@ -1013,14 +1191,13 @@ function renderLiveGames() {
 }
 
 /* exported liveGameClick */
-function liveGameClick(index) {
-	var liveGame = document.getElementById("liveGame_" + index);
+function _liveGameClick(index) {
+	const liveGame = document.getElementById(`liveGame_${index}`);
 	if (liveGame) {
 		if (liveGame.classList.contains("selected")) {
 			liveGameSelect(index);
 			liveGame.classList.remove("selected");
-		}
-		else {
+		} else {
 			liveGameDeselect(index);
 			liveGame.classList.add("selected");
 		}
@@ -1029,49 +1206,50 @@ function liveGameClick(index) {
 }
 
 function liveGameSelect(index) {
-	var liveGame = document.getElementById("liveGame_" + index);
+	const liveGame = document.getElementById(`liveGame_${index}`);
 	if (liveGame) {
 		liveGame.classList.add("selected");
 	}
 }
 
 function liveGameDeselect(index) {
-	var liveGame = document.getElementById("liveGame_" + index);
+	const liveGame = document.getElementById(`liveGame_${index}`);
 	if (liveGame) {
 		liveGame.classList.remove("selected");
 	}
 }
 
 /* exported liveGameSelectGroup */
-function liveGameSelectGroup(group) {
+function _liveGameSelectGroup(group) {
 	liveGameDeselectAll();
-	var selectedGameIndexes = [];
-	for (var i = 0; i < g_liveGames.length; i++) {
-		var game = g_liveGames[i];
-		var phase = game.status.type.name;
-		if (phase && phase.startsWith("OT")) {
-			phase = "OT1"
+	const selectedGameIndexes = [];
+	for (let i = 0; i < g_liveGames.length; i++) {
+		const game = g_liveGames[i];
+		let phase = game.status.type.name;
+		if (phase?.startsWith("OT")) {
+			phase = "OT1";
 		}
 		if (group === GROUP_ALL) {
 			selectedGameIndexes.push(i);
-		}
-		else if (group === GROUP_ONGOING) {
-			if (phase === "STATUS_IN_PROGRESS" || phase === "HALFTIME" || phase === "STATUS_END_PERIOD") {
+		} else if (group === GROUP_ONGOING) {
+			if (
+				phase === "STATUS_IN_PROGRESS" ||
+				phase === "HALFTIME" ||
+				phase === "STATUS_END_PERIOD"
+			) {
 				selectedGameIndexes.push(i);
 			}
-		}
-		else if (group === GROUP_FINISHED) {
+		} else if (group === GROUP_FINISHED) {
 			if (phase === "STATUS_FINAL" || phase === "STATUS_FINAL_OVERTIME") {
 				selectedGameIndexes.push(i);
 			}
-		}
-		else if (group === GROUP_TEN) {
+		} else if (group === GROUP_TEN) {
 			if (getScorigamiProbability(game) >= 10.0) {
 				selectedGameIndexes.push(i);
 			}
 		}
 	}
-	for (var i = 0; i < selectedGameIndexes.length; i++) {
+	for (let i = 0; i < selectedGameIndexes.length; i++) {
 		liveGameSelect(selectedGameIndexes[i]);
 	}
 	selectTableCells();
@@ -1079,48 +1257,50 @@ function liveGameSelectGroup(group) {
 
 /* exported liveGameDeselectAll */
 function liveGameDeselectAll() {
-	for (var i = 0; i < g_liveGames.length; i++) {
+	for (let i = 0; i < g_liveGames.length; i++) {
 		liveGameDeselect(i);
 	}
 	selectTableCells();
 }
 
 function selectTableCells() {
-	var selectedCellIds = [];
-	for (var i = 0; i < g_liveGames.length; i++) {
-		var game = g_liveGames[i];
+	const selectedCellIds = [];
+	for (let i = 0; i < g_liveGames.length; i++) {
+		const game = g_liveGames[i];
 		//console.log(game);
-		var homeScore = null
-		var awayScore = null
-		var phase = game.status.type.name;
+		let homeScore = null;
+		let awayScore = null;
+		const phase = game.status.type.name;
 
-		for (let competitorIndex in game.competitions[0].competitors) {
-			var competitor = game.competitions[0].competitors[competitorIndex];
+		for (const competitorIndex in game.competitions[0].competitors) {
+			const competitor = game.competitions[0].competitors[competitorIndex];
 			if (competitor.homeAway === "home") {
-				homeScore = parseInt(competitor.score);
-			}
-			else {
-				awayScore = parseInt(competitor.score);
+				homeScore = parseInt(competitor.score, 10);
+			} else {
+				awayScore = parseInt(competitor.score, 10);
 			}
 		}
 
-		var highScore = (awayScore > homeScore ? awayScore : homeScore);
-		var lowScore = (awayScore > homeScore ? homeScore : awayScore);
-		var id = "hover_" + lowScore + "-" + highScore;
+		const highScore = awayScore > homeScore ? awayScore : homeScore;
+		const lowScore = awayScore > homeScore ? homeScore : awayScore;
+		const id = `hover_${lowScore}-${highScore}`;
 
-		var liveGame = document.getElementById("liveGame_" + i);
-		if (liveGame && liveGame.classList.contains("selected") && phase !== "STATUS_SCHEDULED") {
+		const liveGame = document.getElementById(`liveGame_${i}`);
+		if (
+			liveGame?.classList.contains("selected") &&
+			phase !== "STATUS_SCHEDULED"
+		) {
 			selectedCellIds.push(id);
 		}
 
-		var cell = document.getElementById(id);
+		const cell = document.getElementById(id);
 		if (cell) {
 			cell.classList.remove("selected");
 		}
 	}
-	for (var i = 0; i < selectedCellIds.length; i++) {
-		var id = selectedCellIds[i];
-		var cell = document.getElementById(id);
+	for (let i = 0; i < selectedCellIds.length; i++) {
+		const id = selectedCellIds[i];
+		const cell = document.getElementById(id);
 		if (cell) {
 			cell.classList.add("selected");
 		}
@@ -1128,39 +1308,41 @@ function selectTableCells() {
 }
 
 function moveSelectedCell(index) {
+	const oldGame = g_prevLiveGames[index];
+	const oldHomeScore =
+		typeof oldGame.homeScore !== "undefined" ? oldGame.homeScore : null;
+	const oldAwayScore =
+		typeof oldGame.awayScore !== "undefined" ? oldGame.awayScore : null;
 
-	var oldGame = g_prevLiveGames[index];
-	var oldHomeScore = (typeof oldGame.homeScore !== "undefined" ? oldGame.homeScore : null);
-	var oldAwayScore = (typeof oldGame.awayScore !== "undefined" ? oldGame.awayScore : null);
-
-	var oldHighScore = (oldAwayScore > oldHomeScore ? oldAwayScore : oldHomeScore);
-	var oldLowScore = (oldAwayScore > oldHomeScore ? oldHomeScore : oldAwayScore);
-	var oldId = "hover_" + oldLowScore + "-" + oldHighScore;
-	var oldCell = document.getElementById(oldId);
-	if (oldCell && oldCell.classList.contains("selected")) {
+	const oldHighScore =
+		oldAwayScore > oldHomeScore ? oldAwayScore : oldHomeScore;
+	const oldLowScore = oldAwayScore > oldHomeScore ? oldHomeScore : oldAwayScore;
+	const oldId = `hover_${oldLowScore}-${oldHighScore}`;
+	const oldCell = document.getElementById(oldId);
+	if (oldCell?.classList.contains("selected")) {
 		oldCell.classList.remove("selected");
 	}
 
-	var newGame = g_liveGames[index];
+	const newGame = g_liveGames[index];
 
-	var newHomeScore = null;
-	var newAwayScore = null;
-	var phase = newGame.status.type.name;
+	let newHomeScore = null;
+	let newAwayScore = null;
+	const phase = newGame.status.type.name;
 
-	for (let competitorIndex in newGame.competitions[0].competitors) {
-		var competitor = newGame.competitions[0].competitors[competitorIndex];
+	for (const competitorIndex in newGame.competitions[0].competitors) {
+		const competitor = newGame.competitions[0].competitors[competitorIndex];
 		if (competitor.homeAway === "home") {
-			newHomeScore = parseInt(competitor.score);
-		}
-		else {
-			newAwayScore = parseInt(competitor.score);
+			newHomeScore = parseInt(competitor.score, 10);
+		} else {
+			newAwayScore = parseInt(competitor.score, 10);
 		}
 	}
 
-	var newHighScore = (newAwayScore > newHomeScore ? newAwayScore : newHomeScore);
-	var newLowScore = (newAwayScore > newHomeScore ? newHomeScore : newAwayScore);
-	var newId = "hover_" + newLowScore + "-" + newHighScore;
-	var newCell = document.getElementById(newId);
+	const newHighScore =
+		newAwayScore > newHomeScore ? newAwayScore : newHomeScore;
+	const newLowScore = newAwayScore > newHomeScore ? newHomeScore : newAwayScore;
+	const newId = `hover_${newLowScore}-${newHighScore}`;
+	const newCell = document.getElementById(newId);
 	if (newCell && phase !== "STATUS_SCHEDULED") {
 		newCell.classList.add("selected");
 	}
@@ -1168,11 +1350,11 @@ function moveSelectedCell(index) {
 
 function clearUpdate() {
 	clearTimeout(g_updateTimeout);
-	g_updateTimeout = setTimeout(function () {
+	g_updateTimeout = setTimeout(() => {
 		if (g_liveGames) {
-			for (let key in g_liveGames) {
-				var liveGame = document.getElementById("liveGame_" + key);
-				if (liveGame && liveGame.classList.contains("newUpdate")) {
+			for (const key in g_liveGames) {
+				const liveGame = document.getElementById(`liveGame_${key}`);
+				if (liveGame?.classList.contains("newUpdate")) {
 					liveGame.classList.remove("newUpdate");
 				}
 			}
@@ -1181,34 +1363,33 @@ function clearUpdate() {
 }
 
 function onResize() {
-
-	var liveGames = document.getElementById("liveGamesContent");
+	const liveGames = document.getElementById("liveGamesContent");
 	if (liveGames) {
-
 		// dynamically remove the bottom border of games on bottom row
-		var liveGamesContainer = document.getElementById("liveGamesContainer");
+		const liveGamesContainer = document.getElementById("liveGamesContainer");
 
 		if (liveGamesContainer) {
 			liveGames.style.width = liveGamesContainer.offsetWidth;
 		}
 
-		var numPossibleInRow = 1;
-		if (window.innerWidth > ((280 * 4) + 30)) {
+		let numPossibleInRow = 1;
+		if (window.innerWidth > 280 * 4 + 30) {
 			numPossibleInRow = 4;
-		} else if (window.innerWidth > ((280 * 3) + 30)) {
+		} else if (window.innerWidth > 280 * 3 + 30) {
 			numPossibleInRow = 3;
-		} else if (window.innerWidth > ((280 * 2) + 30)) {
+		} else if (window.innerWidth > 280 * 2 + 30) {
 			numPossibleInRow = 2;
 		}
 
-		var liveGameContainers = document.getElementsByClassName("liveGameContainer");
+		const liveGameContainers =
+			document.getElementsByClassName("liveGameContainer");
 
-		var numInLastRow = (liveGameContainers.length % numPossibleInRow);
+		let numInLastRow = liveGameContainers.length % numPossibleInRow;
 		if (numInLastRow === 0) {
 			numInLastRow = numPossibleInRow;
 		}
 
-		for (var i = 0; i < liveGameContainers.length; i++) {
+		for (let i = 0; i < liveGameContainers.length; i++) {
 			if (i < liveGameContainers.length - numInLastRow) {
 				liveGameContainers[i].style.borderBottom = "1px dashed #888888";
 			} else {
@@ -1216,40 +1397,39 @@ function onResize() {
 			}
 		}
 
-		var liveGameSeparators = document.getElementsByClassName("liveGameSeparator");
+		const liveGameSeparators =
+			document.getElementsByClassName("liveGameSeparator");
 
-		for (var i = 0; i < liveGameSeparators.length; i++) {
-			if ((i + 1) % numPossibleInRow === 0 || i === liveGameSeparators.length - 1) {
+		for (let i = 0; i < liveGameSeparators.length; i++) {
+			if (
+				(i + 1) % numPossibleInRow === 0 ||
+				i === liveGameSeparators.length - 1
+			) {
 				liveGameSeparators[i].style.borderRight = "none";
 			} else {
 				liveGameSeparators[i].style.borderRight = "1px dashed #888888";
 			}
 		}
-
-
 	}
 }
 
 function getScorigamiProbability(game) {
+	let homeScore = null;
+	let awayScore = null;
+	const phase = game.status.type.name;
 
-	var homeScore = null
-	var awayScore = null
-	var phase = game.status.type.name;
-
-	for (let competitorIndex in game.competitions[0].competitors) {
-		var competitor = game.competitions[0].competitors[competitorIndex];
+	for (const competitorIndex in game.competitions[0].competitors) {
+		const competitor = game.competitions[0].competitors[competitorIndex];
 		if (competitor.homeAway === "home") {
-			homeScore = parseInt(competitor.score);
-		}
-		else {
-			awayScore = parseInt(competitor.score);
+			homeScore = parseInt(competitor.score, 10);
+		} else {
+			awayScore = parseInt(competitor.score, 10);
 		}
 	}
 
-	var clock = game.status.clock;
-	var quarter;
-	var overtime = false;
-
+	let clock = game.status.clock;
+	let quarter;
+	const overtime = false;
 
 	switch (phase) {
 		case "STATUS_IN_PROGRESS":
@@ -1271,33 +1451,35 @@ function getScorigamiProbability(game) {
 			break;
 	}
 
-	quarter = (quarter > 4 ? 4 : quarter);
+	quarter = quarter > 4 ? 4 : quarter;
 
-	var probability = 0.0;
-	var matrix = g_data.matrix;
+	let probability = 0.0;
+	const matrix = g_data.matrix;
 
-	for (var i = 0; i < chances.length; i++) {
-		var chance1 = chances[i];
-		var prob1 = getProb(quarter, clock, chance1);
-		var score1 = awayScore + chance1.pts;
+	for (let i = 0; i < chances.length; i++) {
+		const chance1 = chances[i];
+		const prob1 = getProb(quarter, clock, chance1);
+		const score1 = awayScore + chance1.pts;
 
-		for (var j = 0; j < chances.length; j++) {
-			var chance2 = chances[j];
-			var prob2 = getProb(quarter, clock, chance2);
-			var score2 = homeScore + chance2.pts;
+		for (let j = 0; j < chances.length; j++) {
+			const chance2 = chances[j];
+			const prob2 = getProb(quarter, clock, chance2);
+			const score2 = homeScore + chance2.pts;
 
-			var winScore = (score1 > score2 ? score1 : score2);
-			var loseScore = (score1 > score2 ? score2 : score1);
+			const winScore = score1 > score2 ? score1 : score2;
+			const loseScore = score1 > score2 ? score2 : score1;
 
-			if (!matrix[loseScore] || !matrix[loseScore][winScore] || matrix[loseScore][winScore].count === 0) {
+			if (
+				!matrix[loseScore] ||
+				!matrix[loseScore][winScore] ||
+				matrix[loseScore][winScore].count === 0
+			) {
 				if (loseScore === winScore && !overtime) {
-					probability += prob1 * prob2 / 75.0;
-				}
-				else {
+					probability += (prob1 * prob2) / 75.0;
+				} else {
 					probability += prob1 * prob2;
 				}
 			}
-
 		}
 	}
 
@@ -1314,22 +1496,33 @@ function factorial(n) {
 }
 
 function getProb(quarter, clock, chance) {
-	var prob = Math.exp(-1 * (((4 - quarter) * 15 + (clock / 60.0)) / 60.0 * 4.22)) * Math.pow((((4 - quarter) * 15 + (clock / 60.0)) / 60 * 4.22), (chance.td_1pt + chance.fg + chance.td + chance.td_2pt + chance.safety)) / factorial(chance.td_1pt + chance.fg + chance.td + chance.td_2pt + chance.safety) * chance.bin_chance;
+	const prob =
+		((Math.exp(-1 * ((((4 - quarter) * 15 + clock / 60.0) / 60.0) * 4.22)) *
+			((((4 - quarter) * 15 + clock / 60.0) / 60) * 4.22) **
+				(chance.td_1pt +
+					chance.fg +
+					chance.td +
+					chance.td_2pt +
+					chance.safety)) /
+			factorial(
+				chance.td_1pt + chance.fg + chance.td + chance.td_2pt + chance.safety,
+			)) *
+		chance.bin_chance;
 
 	return prob;
 }
 
 function handleBMAC() {
 	if (window.scrollY >= 500) {
-		var bmac = document.getElementById("bmac");
+		const bmac = document.getElementById("bmac");
 		if (bmac && !g_bmacAnimating && !bmac.classList.contains("hidden")) {
 			g_bmacAnimating = true;
 			bmac.style.right = 5;
 			bmacOut();
 		}
 	}
-	if (window.scrollY == 0) {
-		var bmac = document.getElementById("bmac");
+	if (window.scrollY === 0) {
+		const bmac = document.getElementById("bmac");
 		if (bmac && !g_bmacAnimating && bmac.classList.contains("hidden")) {
 			//g_bmacAnimating = true;
 			//bmac.classList.remove("hidden");
@@ -1338,16 +1531,15 @@ function handleBMAC() {
 	}
 }
 
-function bmacIn() {
-	var bmac = document.getElementById("bmac");
+function _bmacIn() {
+	const bmac = document.getElementById("bmac");
 	if (bmac) {
-		var right = parseInt(bmac.style.right);
+		let right = parseInt(bmac.style.right, 10);
 		if (right < 5) {
 			right += 15;
 			bmac.style.right = right;
-			setTimeout(bmacIn, 10);
-		}
-		else {
+			setTimeout(_bmacIn, 10);
+		} else {
 			bmac.style.right = 5;
 			g_bmacAnimating = false;
 		}
@@ -1355,15 +1547,14 @@ function bmacIn() {
 }
 
 function bmacOut() {
-	var bmac = document.getElementById("bmac");
+	const bmac = document.getElementById("bmac");
 	if (bmac) {
-		var right = parseInt(bmac.style.right);
+		let right = parseInt(bmac.style.right, 10);
 		if (right > -200) {
 			right -= 15;
 			bmac.style.right = right;
 			setTimeout(bmacOut, 10);
-		}
-		else {
+		} else {
 			bmac.style.right = -200;
 			g_bmacAnimating = false;
 			bmac.classList.add("hidden");
@@ -1373,19 +1564,19 @@ function bmacOut() {
 
 //delegate functions to make it possible to create event listeners in a loop
 function onClickDelegate(i, j) {
-	return function () {
+	return () => {
 		onClick(i, j);
 	};
 }
 
 function mouseOverDelegate(i, j) {
-	return function () {
+	return () => {
 		mouseOver(i, j);
 	};
 }
 
 function mouseOffDelegate(i, j) {
-	return function () {
+	return () => {
 		mouseOff(i, j);
 	};
 }
@@ -1393,8 +1584,9 @@ function mouseOffDelegate(i, j) {
 function ehlerClick() {
 	g_ehlerCount++;
 	if (g_ehlerCount === 10) {
-		var modeSelector = document.getElementById("modeSelector");
-		modeSelector.innerHTML += '<option value="ehler">Latest Game (Ehler)</option>';
+		const modeSelector = document.getElementById("modeSelector");
+		modeSelector.innerHTML +=
+			'<option value="ehler">Latest Game (Ehler)</option>';
 		modeSelector.value = "ehler";
 		changeMode();
 	}
