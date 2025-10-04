@@ -6,52 +6,78 @@ This project is dedicated to tracking all scorigami throughout history and keepi
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+### Quick Start with Docker Compose
 
-### Prerequisites
+The easiest way to get started is with Docker Compose:
 
-You will need [Node.js](https://nodejs.org/en/) and [npm](https://www.npmjs.com/).
+```bash
+docker compose up
+```
+
+This will:
+- Start a PostgreSQL database
+- Build and run the app
+- Populate the database with production data
+- Make the app available at [localhost:8081](http://localhost:8081/)
+
+### Manual Setup
+
+#### Prerequisites
+
+You will need [Node.js](https://nodejs.org/en/) (v24 or later) and [npm](https://www.npmjs.com/).
 
 You will also need a PostgreSQL server in order to run and develop for the server. For information on how to set up a server, see [this tutorial](https://www.techrepublic.com/blog/diy-it-guy/diy-a-postgresql-database-server-setup-anyone-can-handle/). After setting up the server, be sure to create a database on that server (the tutorial has instructions for that as well).
 
-### Installing
-
-A step by step series of examples that tell you have to get a development env running
+#### Installing
 
 Clone the repository and install dependencies
 
-```
+```bash
 git clone https://github.com/Merry3750/scorigami.git # or clone your own fork
 cd scorigami
 npm install
 ```
 
-go to /js/Node/dbVars.js and change DATABASE_URL to your database URL. You may also change ADD_DEBUG_TABLES, but it is recommended you keep it true unless you have limited space. 
+Configure your database connection. Either set the `DATABASE_URL` environment variable:
 
+```bash
+export DATABASE_URL="postgres://{{USERNAME}}:{{PASSWORD}}@{{SERVER HOST}}:{{PORT}}/{{DATABASE NAME}}"
 ```
+
+Or edit `/js/Node/dbVars.js`:
+
+```javascript
 var DATABASE_URL = "postgres://{{USERNAME}}:{{PASSWORD}}@{{SERVER HOST}}:{{PORT}}/{{DATABASE NAME}}";
-var ADD_DEBUG_TABLES = true; //creates a second set of tables, identical to the first set that can be used for testing
+var ADD_DEBUG_TABLES = true; //creates a second set of tables for testing
 ```
 
-Populate your database, luckily, I have written a script to do this for you
+Populate your database:
 
-```
+```bash
 npm run setup
 ```
 
-Run the app.
+Run the app:
 
-```
+```bash
 npm start
 ```
 
 Your app should now be running on [localhost:8081](http://localhost:8081/)
 
-While developing on the new FE, files will not auto reload (something to add later). 
-To recompile the React code, run the following command in a separate terminal window or tab (you do not need to restart the entire local process), then just refresh the page:
-```
+### Development
+
+While developing on the React frontend, files will not auto reload. To recompile the React code after making changes:
+
+```bash
 npm run build
 ```
+
+Then refresh the page in your browser.
+
+#### Code Quality
+
+This project uses [Biome](https://biomejs.dev/) for linting and formatting. The linter runs automatically via git pre-commit hooks to ensure code quality.
 
 ## Authors
 
