@@ -1,7 +1,6 @@
 "use strict";
 
 const { Client } = require("pg");
-var request = require("request");
 var dbVars = require("./dbVars");
 
 const client = new Client({
@@ -13,9 +12,10 @@ client.connect();
 var numTables = (dbVars.ADD_DEBUG_TABLES ? 4 : 2);
 var numDone = 0;
 
-request("http://nflscorigami.com/copydb", function(error, response, data)
+fetch("http://nflscorigami.com/copydb")
+	.then(response => response.json())
+	.then(data =>
 {
-	data = JSON.parse(data);
 
 	var queryString = "DROP TABLE IF EXISTS scores;\n";
 	queryString += "CREATE TABLE IF NOT EXISTS scores (";
@@ -103,6 +103,10 @@ request("http://nflscorigami.com/copydb", function(error, response, data)
 			}
 		});
 	}
+})
+.catch(error => {
+	console.log("Error fetching data:", error);
+	client.end();
 });
 
 //client.end();

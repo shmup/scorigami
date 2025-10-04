@@ -5,7 +5,6 @@ var app = express();
 var path = require("path");
 const { Client } = require("pg");
 require("dotenv").load();
-var request = require("request");
 var teamParser = require("./teamParser.js");
 var dbVars = require("./dbVars");
 var sslRedirect = require('heroku-ssl-redirect');
@@ -63,50 +62,41 @@ var lastUpdated;
 var tables = {scores:[], metadata:[]};
 var newScorigami = [];
 
-function updateData()
+async function updateData()
 {
 	console.log("fetching data");
-	request(url, async function(err0, res0, data)
+	try
 	{
-		if(!err0)
+		const response = await fetch(url);
+		const data = await response.json();
+		//if the game is regular or post season, continue, otherwise (preseason) ignore it
+		//type 1 = ???
+		//Type 2 = regular season
+		//type 3 = playoffs (and pro bowl)
+		if (data.season && (data.season.type === 2 || data.season.type === 3))
 		{
-			try
-			{
-				data = JSON.parse(data);
-			}
-			catch(e)
-			{
-				getData();
-				return;
-			}
-			//if the game is regular or post season, continue, otherwise (preseason) ignore it
-			//type 1 = ???
-			//Type 2 = regular season
-			//type 3 = playoffs (and pro bowl)
-			if (data.season && (data.season.type === 2 || data.season.type === 3))
-			{
-				//check the current week
-				client.query("SELECT data_int FROM " + metadataTable + " WHERE description='current_week';")
-					.then(res1 =>
+			//check the current week
+			client.query("SELECT data_int FROM " + metadataTable + " WHERE description='current_week';")
+				.then(res1 =>
+				{
+					var current_week = res1.rows[0].data_int;
+					//if the current week does not match the current tracked week, change the current week and delete the tracked games (we won't be needing them any more)
+					if(data.week && current_week !== data.week.number)
 					{
-						var current_week = res1.rows[0].data_int;
-						//if the current week does not match the current tracked week, change the current week and delete the tracked games (we won't be needing them any more)
-						if(data.week && current_week !== data.week.number)
-						{
-							console.log(data);
-							client.query("UPDATE " + metadataTable + " SET data_int=" + data.week.number + " WHERE description='current_week';DELETE FROM " + metadataTable + " WHERE description='tracked_game';")
-								.then(res2 => 
-								{
-									newScorigami = [];
-									updateData();
-								})
-								.catch(err2 => console.log("error"));
-						}
-						else
-						{
-							//get the list of tracked games
-							client.query("SELECT data_int, data_text FROM " + metadataTable + " WHERE description='tracked_game';")
-								.then (res2 =>
+						console.log(data);
+						client.query("UPDATE " + metadataTable + " SET data_int=" + data.week.number + " WHERE description='current_week';DELETE FROM " + metadataTable + " WHERE description='tracked_game';")
+							.then(res2 =>
+							{
+								newScorigami = [];
+								updateData();
+							})
+							.catch(err2 => console.log("error"));
+					}
+					else
+					{
+						//get the list of tracked games
+						client.query("SELECT data_int, data_text FROM " + metadataTable + " WHERE description='tracked_game';")
+							.then (res2 =>
 							{	
 								var newgames = [];
 								var secondHalf = false;
@@ -305,23 +295,22 @@ function updateData()
 					}
 				})
 				.catch(err1 =>
-			{
-				console.log("There was an error updating data: 1");
-				getData();
-			});
-			}
-			else
-			{
-				console.log("no games tracked because it is not a regular or post season week");
-				getData();
-			}
+				{
+					console.log("There was an error updating data: 1");
+					getData();
+				});
 		}
 		else
 		{
-			console.log("There was an error updating data: 0");
+			console.log("no games tracked because it is not a regular or post season week");
 			getData();
 		}
-	});
+	}
+	catch(err0)
+	{
+		console.log("There was an error updating data: 0");
+		getData();
+	}
 }
 
 function getData()
